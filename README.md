@@ -40,30 +40,49 @@ sudo bash setup-ollama.sh
 pip install psutil
 ```
 
-## Usage
+## Quick Start
 
-### Memory Optimization
+### 1. Installation
+```bash
+# Clone the repository
+git clone http://localhost:3002/r13admin/ram-to-vram-system.git
+cd ram-to-vram-system
+
+# Run setup (requires sudo)
+sudo bash setup-ollama.sh
+```
+
+### 2. Memory Optimization
 ```bash
 # Check current memory usage
 python3 memory_optimizer.py
 
-# Optimize memory allocation
-python3 memory_optimizer.py --optimize
+# Example output:
+# === Memory Optimization Report ===
+# RAM: 10.12/31.2 GB (32.4%)
+# VRAM: 1557/4096 MB (38.0%)
+# GPU Utilization: 99%
+# ✓ Plenty of RAM available - can increase context window
 ```
 
-### Create Models
+### 3. Create Models
 ```bash
-# Create 64K context model
+# Create 64K context model (recommended)
 bash create-64k-model.sh
 
-# Create custom context model
+# Or create custom context size
 bash create-custom-model.sh 32768
 ```
 
-### Agent Integration
+### 4. Check System Status
 ```bash
-# Start conversation coordinator
-python3 conversation_coordinator.py
+bash system-status.sh
+```
+
+### 5. Test Installation
+```bash
+# Run the model
+ollama run llama3.1:8b-64k "Hello, how are you?"
 
 # Test conversation system
 python3 conversation_coordinator.py
