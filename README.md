@@ -1,213 +1,274 @@
-# RAM-to-VRAM System for Ollama
+# RAM-to-VRAM System
 
-A system to optimize RAM usage for Ollama AI models, enabling hybrid CPU+GPU processing with large context windows.
+> Hybrid CPU+GPU memory optimization for Ollama AI models with multi-agent conversation orchestration.
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-3776AB.svg)](https://www.python.org/downloads/)
+[![Ollama](https://img.shields.io/badge/Ollama-latest-0891B2.svg)](https://ollama.ai)
+
+## Overview
+
+RAM-to-VRAM System enables running large language models on consumer hardware by intelligently splitting memory load between system RAM and GPU VRAM. Built for NVIDIA GPUs with limited VRAM (4GB+), it lets you run 8B+ parameter models with 64K+ context windows that would otherwise require enterprise hardware.
+
+The system includes a **multi-agent conversation coordinator** — 9 specialized AI agents that can discuss, debate, and collaborate across channels, each with distinct personalities and expertise areas.
 
 ## Features
 
-- **Hybrid CPU/GPU Processing**: Utilizes both system RAM and GPU VRAM
-- **Dynamic Memory Management**: Automatically adjusts based on available resources
-- **64K Context Windows**: Support for large context windows (64K tokens)
-- **Agent Integration**: Ready for multi-agent systems
-- **JSON-based Memory**: Persistent storage for conversations and knowledge
-
-## System Requirements
-
-- **CPU**: 8+ cores recommended
-- **RAM**: 32GB+ (21GB+ available)
-- **GPU**: NVIDIA GPU with 4GB+ VRAM (GTX 1650 or better)
-- **Storage**: 260GB+ available on fast storage
-
-## Installation
-
-### 1. Install Ollama
-```bash
-curl -fsSL https://ollama.ai/install.sh | sh
-```
-
-### 2. Clone this repository
-```bash
-git clone http://localhost:3002/r13-infrastructure/ram-to-vram-system.git
-cd ram-to-vram-system
-```
-
-### 3. Configure Ollama
-```bash
-sudo bash setup-ollama.sh
-```
-
-### 4. Install dependencies
-```bash
-pip install psutil
-```
+- **Hybrid CPU/GPU Processing** — Model weights in RAM, compute on GPU
+- **Dynamic Memory Management** — Auto-adjusts context windows based on available resources
+- **64K+ Context Windows** — Long conversations and document analysis on consumer hardware
+- **Multi-Agent Orchestration** — 9 agents with cooldowns, priorities, and conversation channels
+- **JSON-Based Persistence** — Conversations and agent state survive restarts
+- **KV Cache Quantization** — q8_0/q4_0 cache compression for memory efficiency
+- **System Monitoring** — Real-time RAM, VRAM, GPU utilization, and agent status
 
 ## Quick Start
 
-### 1. Installation
 ```bash
-# Clone the repository
-git clone http://localhost:3002/r13admin/ram-to-vram-system.git
+# 1. Clone
+git clone https://github.com/r13xr13/ram-to-vram-system.git
 cd ram-to-vram-system
 
-# Run setup (requires sudo)
+# 2. Install Ollama
+curl -fsSL https://ollama.ai/install.sh | sh
+
+# 3. Configure Ollama (requires sudo)
 sudo bash setup-ollama.sh
-```
 
-### 2. Memory Optimization
-```bash
-# Check current memory usage
-python3 memory_optimizer.py
+# 4. Install Python dependencies
+pip install psutil
 
-# Example output:
-# === Memory Optimization Report ===
-# RAM: 10.12/31.2 GB (32.4%)
-# VRAM: 1557/4096 MB (38.0%)
-# GPU Utilization: 99%
-# ✓ Plenty of RAM available - can increase context window
-```
-
-### 3. Create Models
-```bash
-# Create 64K context model (recommended)
+# 5. Create 64K context model
 bash create-64k-model.sh
 
-# Or create custom context size
-bash create-custom-model.sh 32768
+# 6. Check system status
+bash system-status.sh
 ```
 
-### 4. Check System Status
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────┐
+│                    RAM-to-VRAM                       │
+├──────────────────┬──────────────────────────────────┤
+│   CPU (RAM)      │   GPU (VRAM)                     │
+│                  │                                  │
+│  • Model weights │  • Compute layers (20 layers)    │
+│  • KV cache      │  • Compute buffer                │
+│    (2.1GB)       │    (677MB)                       │
+│  • Output buffer │                                  │
+│    (0.5MB)       │                                  │
+├──────────────────┴──────────────────────────────────┤
+│                                                      │
+│  Ollama Server ←→ Memory Optimizer ←→ Agents        │
+│                                                      │
+│  ┌─────────┐ ┌─────────┐ ┌─────────┐                │
+│  │ Jack    │ │ Sam     │ │ Alice   │  ... + 6 more  │
+│  │Analytic │ │Creative │ │Support  │                │
+│  └─────────┘ └─────────┘ └─────────┘                │
+└─────────────────────────────────────────────────────┘
+```
+
+## System Requirements
+
+| Component | Minimum | Recommended |
+|-----------|---------|-------------|
+| CPU | 4 cores | 8+ cores, 16 threads |
+| RAM | 16GB | 32GB+ |
+| GPU | NVIDIA 2GB VRAM | NVIDIA 4GB+ (GTX 1650+) |
+| Storage | 10GB free | 260GB+ (for models) |
+| OS | Linux | Arch-based / Ubuntu |
+
+## Project Structure
+
+```
+ram-to-vram-system/
+├── setup-ollama.sh              # Ollama systemd configuration
+├── memory_optimizer.py          # Real-time RAM/VRAM monitoring
+├── system-status.sh             # One-command system health check
+├── create-64k-model.sh          # Create 64K context model
+├── create-custom-model.sh       # Create model with custom context
+├── agent-coordinator.py         # Multi-agent scheduling & cooldowns
+├── conversation_coordinator.py  # Agent conversation orchestration
+├── docs/
+│   ├── INSTALL.md               # Detailed installation guide
+│   ├── CONFIG.md                # Configuration reference
+│   └── TROUBLESHOOTING.md       # Common issues & solutions
+└── README.md
+```
+
+## Usage
+
+### Memory Optimization
+
+```bash
+# Check current memory usage and get recommendations
+python3 memory_optimizer.py
+```
+
+Output:
+```
+=== Memory Optimization Report ===
+RAM: 10.12/31.2 GB (32.4%)
+VRAM: 1557/4096 MB (38.0%)
+GPU Utilization: 99%
+✓ Plenty of RAM available - can increase context window
+```
+
+### System Status
+
 ```bash
 bash system-status.sh
 ```
 
-### 5. Test Installation
+Checks: Ollama service, loaded models, GPU status, RAM, and running agents.
+
+### Model Creation
+
 ```bash
-# Run the model
-ollama run llama3.1:8b-64k "Hello, how are you?"
+# 64K context (recommended for 32GB RAM)
+bash create-64k-model.sh
 
-# Test conversation system
+# Custom context size
+bash create-custom-model.sh 32768    # 32K
+bash create-custom-model.sh 131072   # 128K (64GB+ RAM)
+```
+
+### Agent System
+
+The system includes 9 agents with distinct personalities:
+
+| Agent | Style | Expertise |
+|-------|-------|-----------|
+| Jack | Analytical | Systems thinking, analysis |
+| Sam | Creative | Ideas, projects, design |
+| Alice | Supportive | Help, assistance, feedback |
+| Tom | Practical | Tasks, actions, results |
+| Alex | Technical | Code, debugging, implementation |
+| Riley | Research | Data, research, analysis |
+| Jordan | Strategic | Planning, strategy, goals |
+| Morgan | Creative | Ideas, innovation, art |
+| Casey | Detailed | Documentation, details, specs |
+
+#### Conversation Channels
+
+- **general** — Jack, Sam, Alice, Tom (10s cooldown)
+- **tech** — Alex, Riley, Jordan (8s cooldown)
+- **random** — Morgan, Casey, Jack (15s cooldown)
+
+```bash
+# Test the conversation coordinator
 python3 conversation_coordinator.py
+
+# MCP server mode
+python3 conversation_coordinator.py user "Hello agents, what do you think about this?"
+python3 conversation_coordinator.py auto tech "AI architecture discussion"
+python3 conversation_coordinator.py start general system "Morning standup"
 ```
 
-## File Structure
+### Agent Coordinator
 
-```
-.
-├── README.md                 # This file
-├── setup-ollama.sh          # Ollama configuration script
-├── memory_optimizer.py      # Memory optimization tool
-├── conversation_coordinator.py  # Agent conversation system
-├── create-64k-model.sh      # Model creation script
-├── create-custom-model.sh   # Custom model script
-├── system-status.sh         # System status checker
-└── docs/
-    ├── INSTALL.md           # Detailed installation guide
-    ├── CONFIG.md            # Configuration options
-    └── TROUBLESHOOTING.md   # Common issues and solutions
+```python
+from agent_coordinator import AgentCoordinator
+
+coord = AgentCoordinator()
+next_agent = coord.get_next_agent()  # Returns agent not on cooldown
+coord.mark_agent_run(next_agent)     # Marks run, starts cooldown
+coord.set_priority("alex", 3)        # Higher priority = runs more often
 ```
 
 ## Configuration
 
 ### Ollama Environment Variables
+
+Set in `/etc/systemd/system/ollama.service.d/override.conf`:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `OLLAMA_NUM_THREADS` | 16 | CPU threads for inference |
+| `OLLAMA_NUM_CTX` | 65536 | Context window size (tokens) |
+| `OLLAMA_FLASH_ATTENTION` | 1 | Enable flash attention (faster) |
+| `OLLAMA_KV_CACHE_TYPE` | q8_0 | KV cache quantization |
+| `OLLAMA_GPU_LAYERS` | 20 | Layers offloaded to GPU |
+| `OLLAMA_KEEP_ALIVE` | 24h | How long to keep models loaded |
+| `OLLAMA_MAX_LOADED_MODELS` | 3 | Max models in memory |
+
+### Memory Profiles
+
+**16GB RAM:**
 ```bash
-OLLAMA_NUM_THREADS=16          # CPU threads
-OLLAMA_NUM_CTX=65536           # Context window size
-OLLAMA_FLASH_ATTENTION=1       # Enable flash attention
-OLLAMA_KV_CACHE_TYPE=q8_0      # KV cache quantization
-OLLAMA_GPU_LAYERS=20           # GPU layers to offload
+OLLAMA_NUM_CTX=32768
+OLLAMA_GPU_LAYERS=10
+OLLAMA_KV_CACHE_TYPE=q4_0
 ```
 
-### Agent Configuration
-- **Memory Location**: `/home/c0smic/agent-setup/agent_memory/`
-- **Conversation Storage**: `/home/c0smic/agent-setup/conversations/`
-- **Rate Limiting**: 5-second cooldown between agent cycles
+**32GB RAM (default):**
+```bash
+OLLAMA_NUM_CTX=65536
+OLLAMA_GPU_LAYERS=20
+OLLAMA_KV_CACHE_TYPE=q8_0
+```
 
-## Memory Optimization
+**64GB+ RAM:**
+```bash
+OLLAMA_NUM_CTX=131072
+OLLAMA_GPU_LAYERS=30
+OLLAMA_KV_CACHE_TYPE=q8_0
+```
 
-### Current Configuration
-- **Model**: llama3.1:8b-64k (64K context)
-- **RAM Usage**: ~36GB (system RAM)
-- **VRAM Usage**: ~1.5GB (GPU VRAM)
-- **GPU Utilization**: 98%
+### Context Window Memory Usage
 
-### Optimization Strategy
-1. **CPU Offloading**: Store model weights in system RAM
-2. **GPU Acceleration**: Use GPU for compute-intensive operations
-3. **KV Cache**: Store attention cache in CPU RAM (2.1GB)
-4. **Context Window**: 64K tokens for long conversations
+| Context | RAM | VRAM |
+|---------|-----|------|
+| 16K | ~1GB | ~200MB |
+| 32K | ~2GB | ~400MB |
+| 64K | ~4GB | ~800MB |
+| 128K | ~8GB | ~1.6GB |
 
-## Agent System
+## Performance
 
-### Available Agents
-1. **Jack** - Analytical/Systems thinking
-2. **Sam** - Creative/Idea generation
-3. **Alice** - Supportive/Helpful
-4. **Tom** - Practical/Action-oriented
-5. **Alex** - Technical/Implementation
-6. **Riley** - Research/Data analysis
-7. **Jordan** - Strategic/Planning
-8. **Morgan** - Creative/Innovative
-9. **Casey** - Detailed/Documentation
-
-### Conversation Channels
-- **general**: General discussions
-- **tech**: Technical topics
-- **random**: Casual chat
+| Mode | Speed |
+|------|-------|
+| CPU only | ~3-5 tokens/sec |
+| GPU only | ~10-15 tokens/sec |
+| Hybrid (CPU+GPU) | ~8-12 tokens/sec |
 
 ## Monitoring
 
-### System Status
 ```bash
-# Memory usage
-python3 memory_optimizer.py
-
-# Agent status
-ps aux | grep "r13 gateway"
+# Real-time memory
+watch -n 1 free -h
 
 # GPU utilization
-nvidia-smi
-```
+watch -n 1 nvidia-smi
 
-### Logs
-- **Ollama**: `journalctl -u ollama -f`
-- **Agents**: `/tmp/r13-*.log`
-- **MCP Server**: `/tmp/mcp-server.log`
+# Ollama logs
+journalctl -u ollama -f
+
+# Memory report (JSON)
+python3 -c "from memory_optimizer import MemoryOptimizer; import json; print(json.dumps(MemoryOptimizer().create_memory_report(), indent=2))"
+```
 
 ## Troubleshooting
 
-### High RAM Usage
-- Check memory optimizer for recommendations
-- Reduce context window size if needed
-- Clear old conversation histories
+See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for detailed solutions.
 
-### GPU Memory Full
-- Reduce `OLLAMA_GPU_LAYERS`
-- Use smaller model quantization
-- Restart Ollama to clear cache
+**Common fixes:**
 
-### Agent Timeout
-- Increase cooldown period
-- Check Ollama service status
-- Verify network connectivity
+| Issue | Fix |
+|-------|-----|
+| Ollama not starting | `journalctl -u ollama -f` |
+| GPU not detected | Check `nvidia-smi` and CUDA drivers |
+| High RAM usage | Reduce context window, run `memory_optimizer.py` |
+| GPU memory full | Reduce `OLLAMA_GPU_LAYERS`, use q4_0 cache |
+| Agent timeout | Increase cooldown, check Ollama service |
 
-## Performance Benchmarks
+## Documentation
 
-### Context Window Performance
-- **32K tokens**: ~1.5GB RAM, 500MB VRAM
-- **64K tokens**: ~3.0GB RAM, 1GB VRAM
-- **128K tokens**: ~6.0GB RAM, 2GB VRAM
-
-### Inference Speed
-- **CPU only**: ~3-5 tokens/second
-- **GPU only**: ~10-15 tokens/second
-- **Hybrid (CPU+GPU)**: ~8-12 tokens/second
+- [Installation Guide](docs/INSTALL.md) — Step-by-step setup
+- [Configuration Reference](docs/CONFIG.md) — All options and tuning
+- [Troubleshooting](docs/TROUBLESHOOTING.md) — Common issues
 
 ## License
 
-MIT License - See LICENSE file for details
-
-## Support
-
-For issues and questions:
-- Check `docs/TROUBLESHOOTING.md`
-- Review system logs
-- Contact system administrator
+MIT License — see [LICENSE](LICENSE) for details.
