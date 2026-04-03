@@ -10,6 +10,8 @@
 
 Run large language models on consumer hardware by intelligently splitting memory between system RAM and GPU VRAM. Auto-detects your inference backend and generates optimal configuration for your specific hardware.
 
+![System Monitor](assets/btop-snapshot.png)
+
 ## Supported Backends
 
 | Backend | Setup Script | Port | Best For |
