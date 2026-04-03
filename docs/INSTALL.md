@@ -2,105 +2,94 @@
 
 ## Prerequisites
 
-### Hardware Requirements
-- **CPU**: Intel i7-9700F or better (8 cores, 16 threads)
-- **RAM**: 32GB+ recommended
-- **GPU**: NVIDIA GTX 1650 or better (4GB+ VRAM)
-- **Storage**: 260GB+ available on fast storage
+### Hardware
+- **CPU**: 4+ cores (8+ recommended)
+- **RAM**: 16GB+ (32GB recommended)
+- **GPU**: NVIDIA 2GB+ VRAM (GTX 1650+ recommended)
+- **Storage**: 10GB+ free (50GB+ for models)
 
-### Software Requirements
-- **Operating System**: Linux (Arch-based recommended)
+### Software
+- **OS**: Linux (Arch / Ubuntu)
 - **Python**: 3.9+
-- **Ollama**: Latest version
-- **NVIDIA Drivers**: CUDA-enabled drivers
+- **NVIDIA Drivers**: CUDA-enabled
 
-## Step-by-Step Installation
+## Step 1: Install Dependencies
 
-### 1. Install Ollama
 ```bash
+pip install psutil
+```
+
+## Step 2: Analyze Your Hardware
+
+```bash
+python3 scripts/memory_optimizer.py
+```
+
+This detects your GPU, RAM, and running backend, then recommends optimal settings.
+
+## Step 3: Configure Your Backend
+
+Pick **one** backend:
+
+### Ollama (easiest)
+
+```bash
+# Install Ollama
 curl -fsSL https://ollama.ai/install.sh | sh
+
+# Configure for your hardware
+sudo bash backends/ollama/setup-ollama.sh
 ```
 
-### 2. Install Python Dependencies
+### vLLM (production)
+
 ```bash
-sudo pacman -S python-psutil
+# Install vLLM
+pip install vllm
+
+# Generate launch config
+bash backends/vllm/setup-vllm.sh
+
+# Launch with a model
+bash config/vllm-launch.sh meta-llama/Llama-3.1-8B-Instruct
 ```
 
-### 3. Clone Repository
+### llama.cpp (GGUF models)
+
 ```bash
-git clone http://localhost:3002/r13-infrastructure/ram-to-vram-system.git
-cd ram-to-vram-system
+# Install llama.cpp
+# Arch: sudo pacman -S llama.cpp
+# Or build from source: https://github.com/ggerganov/llama.cpp
+
+# Generate server config
+bash backends/llama-cpp/setup-llama-cpp.sh
+
+# Launch with a GGUF model
+bash config/llama-cpp-launch.sh /path/to/model.gguf
 ```
 
-### 4. Run Setup Script
+### LM Studio (GUI)
+
 ```bash
-sudo bash setup-ollama.sh
+# Install LM Studio from https://lmstudio.ai
+# Run the setup script to generate optimal config
+bash backends/lm-studio/setup-lm-studio.sh
+
+# Restart LM Studio to apply
 ```
 
-### 5. Verify Installation
+## Step 4: Verify
+
 ```bash
-# Check Ollama status
-systemctl status ollama
-
-# Check loaded models
-curl http://localhost:11434/api/ps
-
-# Run memory optimizer
-python3 memory_optimizer.py
+bash scripts/system-status.sh
 ```
 
-## Post-Installation
+## Step 5: Fine-Tune
 
-### Create Models
+Run the memory optimizer after starting your backend:
+
 ```bash
-# Create 64K context model
-bash create-64k-model.sh
-
-# Or create custom context size
-bash create-custom-model.sh 32768
+python3 scripts/memory_optimizer.py
 ```
 
-### Test Installation
-```bash
-# Test the model
-ollama run llama3.1:8b-64k "Hello, how are you?"
-
-# Check system status
-bash system-status.sh
-```
-
-## Troubleshooting
-
-### Ollama Not Starting
-```bash
-# Check logs
-journalctl -u ollama -f
-
-# Restart service
-sudo systemctl restart ollama
-```
-
-### GPU Not Detected
-```bash
-# Check GPU
-nvidia-smi
-
-# Check CUDA
-nvcc --version
-```
-
-### High RAM Usage
-```bash
-# Run memory optimizer
-python3 memory_optimizer.py
-
-# Reduce context window if needed
-bash create-custom-model.sh 16384
-```
-
-## Next Steps
-
-1. **Configure Agents**: Set up your agent system
-2. **Monitor Performance**: Use `system-status.sh`
-3. **Optimize Memory**: Run `memory_optimizer.py` regularly
-4. **Update Models**: Keep models updated with latest versions
+Adjust settings based on the recommendations.

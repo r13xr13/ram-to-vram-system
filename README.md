@@ -1,274 +1,202 @@
 # RAM-to-VRAM System
 
-> Hybrid CPU+GPU memory optimization for Ollama AI models with multi-agent conversation orchestration.
+> Backend-agnostic memory optimization for local LLM inference. Works with Ollama, vLLM, llama.cpp, and LM Studio.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-3776AB.svg)](https://www.python.org/downloads/)
-[![Ollama](https://img.shields.io/badge/Ollama-latest-0891B2.svg)](https://ollama.ai)
+[![Backends](https://img.shields.io/badge/backends-Ollama%20%7C%20vLLM%20%7C%20llama.cpp%20%7C%20LM%20Studio-0891B2.svg)](#supported-backends)
 
 ## Overview
 
-RAM-to-VRAM System enables running large language models on consumer hardware by intelligently splitting memory load between system RAM and GPU VRAM. Built for NVIDIA GPUs with limited VRAM (4GB+), it lets you run 8B+ parameter models with 64K+ context windows that would otherwise require enterprise hardware.
+Run large language models on consumer hardware by intelligently splitting memory between system RAM and GPU VRAM. Auto-detects your inference backend and generates optimal configuration for your specific hardware.
 
-The system includes a **multi-agent conversation coordinator** — 9 specialized AI agents that can discuss, debate, and collaborate across channels, each with distinct personalities and expertise areas.
+## Supported Backends
 
-## Features
-
-- **Hybrid CPU/GPU Processing** — Model weights in RAM, compute on GPU
-- **Dynamic Memory Management** — Auto-adjusts context windows based on available resources
-- **64K+ Context Windows** — Long conversations and document analysis on consumer hardware
-- **Multi-Agent Orchestration** — 9 agents with cooldowns, priorities, and conversation channels
-- **JSON-Based Persistence** — Conversations and agent state survive restarts
-- **KV Cache Quantization** — q8_0/q4_0 cache compression for memory efficiency
-- **System Monitoring** — Real-time RAM, VRAM, GPU utilization, and agent status
+| Backend | Setup Script | Port | Best For |
+|---------|-------------|------|----------|
+| **Ollama** | `backends/ollama/setup-ollama.sh` | 11434 | Quick setup, multi-model |
+| **vLLM** | `backends/vllm/setup-vllm.sh` | 8000 | Production, high throughput |
+| **llama.cpp** | `backends/llama-cpp/setup-llama-cpp.sh` | 8080 | GGUF models, low VRAM |
+| **LM Studio** | `backends/lm-studio/setup-lm-studio.sh` | 1234 | GUI, easy model switching |
 
 ## Quick Start
 
 ```bash
-# 1. Clone
 git clone https://github.com/r13xr13/ram-to-vram-system.git
 cd ram-to-vram-system
 
-# 2. Install Ollama
-curl -fsSL https://ollama.ai/install.sh | sh
+# Analyze your hardware
+python3 scripts/memory_optimizer.py
 
-# 3. Configure Ollama (requires sudo)
-sudo bash setup-ollama.sh
+# Configure your backend (pick one)
+sudo bash backends/ollama/setup-ollama.sh
+bash backends/vllm/setup-vllm.sh
+bash backends/llama-cpp/setup-llama-cpp.sh
+bash backends/lm-studio/setup-lm-studio.sh
 
-# 4. Install Python dependencies
-pip install psutil
+# Check everything
+bash scripts/system-status.sh
+```
 
-# 5. Create 64K context model
-bash create-64k-model.sh
+## Memory Optimizer
 
-# 6. Check system status
-bash system-status.sh
+Auto-detects your running backend and gives hardware-specific recommendations:
+
+```bash
+# Human-readable report
+python3 scripts/memory_optimizer.py
+
+# JSON output for scripting
+python3 scripts/memory_optimizer.py --json
+
+# Override VRAM detection (for headless/multi-GPU)
+python3 scripts/memory_optimizer.py --vram 8192
+```
+
+Example output:
+```
+============================================================
+  RAM-to-VRAM Memory Optimizer
+============================================================
+  Detected Backend: OLLAMA
+  Timestamp: 2026-04-03T17:45:00
+------------------------------------------------------------
+  RAM:    28.3/31.2 GB (90.7%)
+  VRAM:   610/4096 MB (14.9%)
+  GPU:    40% util | 37°C | 7.5W
+  Swap:   0.0/0.0 GB (0.0%)
+------------------------------------------------------------
+  Recommendations:
+  [⚠] RAM: RAM at 90.7% — approaching limit
+      → Set context to 32768 tokens
+  [✓] VRAM: VRAM at 14.9% — healthy
+      → Can offload up to 20 layers
+  [ℹ] GPU: GPU utilization at 40% — moderate
+      → Increase GPU layers for better performance
+------------------------------------------------------------
+  Recommended Config (ollama):
+    env_vars:
+      OLLAMA_NUM_THREADS = 8
+      OLLAMA_NUM_CTX = 65536
+      OLLAMA_FLASH_ATTENTION = 1
+      OLLAMA_KV_CACHE_TYPE = q8_0
+      OLLAMA_GPU_LAYERS = 20
+      OLLAMA_KEEP_ALIVE = 24h
+      OLLAMA_MAX_LOADED_MODELS = 1
+============================================================
 ```
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                    RAM-to-VRAM                       │
-├──────────────────┬──────────────────────────────────┤
-│   CPU (RAM)      │   GPU (VRAM)                     │
-│                  │                                  │
-│  • Model weights │  • Compute layers (20 layers)    │
-│  • KV cache      │  • Compute buffer                │
-│    (2.1GB)       │    (677MB)                       │
-│  • Output buffer │                                  │
-│    (0.5MB)       │                                  │
-├──────────────────┴──────────────────────────────────┤
-│                                                      │
-│  Ollama Server ←→ Memory Optimizer ←→ Agents        │
-│                                                      │
-│  ┌─────────┐ ┌─────────┐ ┌─────────┐                │
-│  │ Jack    │ │ Sam     │ │ Alice   │  ... + 6 more  │
-│  │Analytic │ │Creative │ │Support  │                │
-│  └─────────┘ └─────────┘ └─────────┘                │
-└─────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│                    RAM-to-VRAM                          │
+├──────────────────────┬──────────────────────────────────┤
+│   CPU (RAM)          │   GPU (VRAM)                     │
+│                      │                                  │
+│  • Model weights     │  • Compute layers                │
+│  • KV cache          │  • Compute buffers               │
+│  • Output tokens     │  • Attention computation         │
+├──────────────────────┴──────────────────────────────────┤
+│                                                          │
+│  ┌──────────┐    ┌──────────────┐    ┌────────────────┐ │
+│  │ Ollama   │    │    vLLM      │    │   llama.cpp    │ │
+│  │ :11434   │    │    :8000     │    │    :8080       │ │
+│  └──────────┘    └──────────────┘    └────────────────┘ │
+│                                                          │
+│  ┌──────────────────────────────────────────────────┐   │
+│  │         Memory Optimizer (auto-detect)           │   │
+│  │  • Detect backend via process/port scanning      │   │
+│  │  • Calculate optimal context/GPU layers          │   │
+│  │  • Generate backend-specific config              │   │
+│  └──────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────┘
 ```
 
 ## System Requirements
 
 | Component | Minimum | Recommended |
 |-----------|---------|-------------|
-| CPU | 4 cores | 8+ cores, 16 threads |
+| CPU | 4 cores | 8+ cores |
 | RAM | 16GB | 32GB+ |
 | GPU | NVIDIA 2GB VRAM | NVIDIA 4GB+ (GTX 1650+) |
-| Storage | 10GB free | 260GB+ (for models) |
-| OS | Linux | Arch-based / Ubuntu |
+| Storage | 10GB free | 50GB+ (for models) |
+| OS | Linux | Arch / Ubuntu |
+
+## Configuration Reference
+
+### Context Window by RAM
+
+| Available RAM | Context Size | RAM Usage |
+|---------------|-------------|-----------|
+| > 20GB | 128K (131072) | ~8GB |
+| > 10GB | 64K (65536) | ~4GB |
+| > 5GB | 32K (32768) | ~2GB |
+| < 5GB | 16K (16384) | ~1GB |
+
+### GPU Layers by VRAM
+
+| VRAM | GPU Layers | Example GPU |
+|------|-----------|-------------|
+| ≥ 24GB | 99 (full) | RTX 3090/4090 |
+| ≥ 16GB | 80 | RTX 4080 |
+| ≥ 12GB | 60 | RTX 3060 12GB |
+| ≥ 8GB | 40 | RTX 3070/4060 Ti |
+| ≥ 6GB | 30 | RTX 3060 6GB |
+| ≥ 4GB | 20 | GTX 1650 |
+| < 4GB | 10 | GTX 1050 Ti |
+
+### KV Cache Quantization
+
+| Type | Memory | Quality |
+|------|--------|---------|
+| f16 | 2× baseline | Best |
+| q8_0 | 1× baseline | Near-lossless |
+| q4_0 | 0.5× baseline | Good |
 
 ## Project Structure
 
 ```
 ram-to-vram-system/
-├── setup-ollama.sh              # Ollama systemd configuration
-├── memory_optimizer.py          # Real-time RAM/VRAM monitoring
-├── system-status.sh             # One-command system health check
-├── create-64k-model.sh          # Create 64K context model
-├── create-custom-model.sh       # Create model with custom context
-├── agent-coordinator.py         # Multi-agent scheduling & cooldowns
-├── conversation_coordinator.py  # Agent conversation orchestration
+├── scripts/
+│   ├── memory_optimizer.py    # Backend-agnostic memory analysis
+│   └── system-status.sh       # One-command health check
+├── backends/
+│   ├── ollama/
+│   │   └── setup-ollama.sh    # Ollama systemd config
+│   ├── vllm/
+│   │   └── setup-vllm.sh      # vLLM launch config generator
+│   ├── llama-cpp/
+│   │   └── setup-llama-cpp.sh # llama.cpp server config
+│   └── lm-studio/
+│       └── setup-lm-studio.sh # LM Studio JSON config
+├── config/                    # Generated launch configs
 ├── docs/
-│   ├── INSTALL.md               # Detailed installation guide
-│   ├── CONFIG.md                # Configuration reference
-│   └── TROUBLESHOOTING.md       # Common issues & solutions
+│   ├── INSTALL.md
+│   ├── CONFIG.md
+│   └── TROUBLESHOOTING.md
+├── LICENSE
+├── .gitignore
 └── README.md
-```
-
-## Usage
-
-### Memory Optimization
-
-```bash
-# Check current memory usage and get recommendations
-python3 memory_optimizer.py
-```
-
-Output:
-```
-=== Memory Optimization Report ===
-RAM: 10.12/31.2 GB (32.4%)
-VRAM: 1557/4096 MB (38.0%)
-GPU Utilization: 99%
-✓ Plenty of RAM available - can increase context window
-```
-
-### System Status
-
-```bash
-bash system-status.sh
-```
-
-Checks: Ollama service, loaded models, GPU status, RAM, and running agents.
-
-### Model Creation
-
-```bash
-# 64K context (recommended for 32GB RAM)
-bash create-64k-model.sh
-
-# Custom context size
-bash create-custom-model.sh 32768    # 32K
-bash create-custom-model.sh 131072   # 128K (64GB+ RAM)
-```
-
-### Agent System
-
-The system includes 9 agents with distinct personalities:
-
-| Agent | Style | Expertise |
-|-------|-------|-----------|
-| Jack | Analytical | Systems thinking, analysis |
-| Sam | Creative | Ideas, projects, design |
-| Alice | Supportive | Help, assistance, feedback |
-| Tom | Practical | Tasks, actions, results |
-| Alex | Technical | Code, debugging, implementation |
-| Riley | Research | Data, research, analysis |
-| Jordan | Strategic | Planning, strategy, goals |
-| Morgan | Creative | Ideas, innovation, art |
-| Casey | Detailed | Documentation, details, specs |
-
-#### Conversation Channels
-
-- **general** — Jack, Sam, Alice, Tom (10s cooldown)
-- **tech** — Alex, Riley, Jordan (8s cooldown)
-- **random** — Morgan, Casey, Jack (15s cooldown)
-
-```bash
-# Test the conversation coordinator
-python3 conversation_coordinator.py
-
-# MCP server mode
-python3 conversation_coordinator.py user "Hello agents, what do you think about this?"
-python3 conversation_coordinator.py auto tech "AI architecture discussion"
-python3 conversation_coordinator.py start general system "Morning standup"
-```
-
-### Agent Coordinator
-
-```python
-from agent_coordinator import AgentCoordinator
-
-coord = AgentCoordinator()
-next_agent = coord.get_next_agent()  # Returns agent not on cooldown
-coord.mark_agent_run(next_agent)     # Marks run, starts cooldown
-coord.set_priority("alex", 3)        # Higher priority = runs more often
-```
-
-## Configuration
-
-### Ollama Environment Variables
-
-Set in `/etc/systemd/system/ollama.service.d/override.conf`:
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `OLLAMA_NUM_THREADS` | 16 | CPU threads for inference |
-| `OLLAMA_NUM_CTX` | 65536 | Context window size (tokens) |
-| `OLLAMA_FLASH_ATTENTION` | 1 | Enable flash attention (faster) |
-| `OLLAMA_KV_CACHE_TYPE` | q8_0 | KV cache quantization |
-| `OLLAMA_GPU_LAYERS` | 20 | Layers offloaded to GPU |
-| `OLLAMA_KEEP_ALIVE` | 24h | How long to keep models loaded |
-| `OLLAMA_MAX_LOADED_MODELS` | 3 | Max models in memory |
-
-### Memory Profiles
-
-**16GB RAM:**
-```bash
-OLLAMA_NUM_CTX=32768
-OLLAMA_GPU_LAYERS=10
-OLLAMA_KV_CACHE_TYPE=q4_0
-```
-
-**32GB RAM (default):**
-```bash
-OLLAMA_NUM_CTX=65536
-OLLAMA_GPU_LAYERS=20
-OLLAMA_KV_CACHE_TYPE=q8_0
-```
-
-**64GB+ RAM:**
-```bash
-OLLAMA_NUM_CTX=131072
-OLLAMA_GPU_LAYERS=30
-OLLAMA_KV_CACHE_TYPE=q8_0
-```
-
-### Context Window Memory Usage
-
-| Context | RAM | VRAM |
-|---------|-----|------|
-| 16K | ~1GB | ~200MB |
-| 32K | ~2GB | ~400MB |
-| 64K | ~4GB | ~800MB |
-| 128K | ~8GB | ~1.6GB |
-
-## Performance
-
-| Mode | Speed |
-|------|-------|
-| CPU only | ~3-5 tokens/sec |
-| GPU only | ~10-15 tokens/sec |
-| Hybrid (CPU+GPU) | ~8-12 tokens/sec |
-
-## Monitoring
-
-```bash
-# Real-time memory
-watch -n 1 free -h
-
-# GPU utilization
-watch -n 1 nvidia-smi
-
-# Ollama logs
-journalctl -u ollama -f
-
-# Memory report (JSON)
-python3 -c "from memory_optimizer import MemoryOptimizer; import json; print(json.dumps(MemoryOptimizer().create_memory_report(), indent=2))"
 ```
 
 ## Troubleshooting
 
 See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for detailed solutions.
 
-**Common fixes:**
+**Quick fixes:**
 
 | Issue | Fix |
 |-------|-----|
-| Ollama not starting | `journalctl -u ollama -f` |
-| GPU not detected | Check `nvidia-smi` and CUDA drivers |
-| High RAM usage | Reduce context window, run `memory_optimizer.py` |
-| GPU memory full | Reduce `OLLAMA_GPU_LAYERS`, use q4_0 cache |
-| Agent timeout | Increase cooldown, check Ollama service |
+| No backend detected | Start Ollama/vLLM/llama.cpp first |
+| OOM on GPU | Reduce `--n-gpu-layers` or `--gpu-memory-utilization` |
+| High RAM | Lower context window, use q4_0 KV cache |
+| Slow inference | Enable flash attention, increase GPU layers |
 
-## Documentation
+## Contributing
 
-- [Installation Guide](docs/INSTALL.md) — Step-by-step setup
-- [Configuration Reference](docs/CONFIG.md) — All options and tuning
-- [Troubleshooting](docs/TROUBLESHOOTING.md) — Common issues
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
 
 ## License
 
-MIT License — see [LICENSE](LICENSE) for details.
+MIT — see [LICENSE](LICENSE).
