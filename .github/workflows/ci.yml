@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  lint:
+    name: Lint & Validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: pip install psutil
+
+      - name: Run memory optimizer (CPU-only fallback)
+        run: python3 scripts/memory_optimizer.py
+
+      - name: Run memory optimizer (JSON output)
+        run: python3 scripts/memory_optimizer.py --json
+
+      - name: Validate shell scripts
+        run: |
+          for f in backends/*/setup-*.sh scripts/*.sh; do
+            echo "Checking $f..."
+            bash -n "$f"
+          done
+
+      - name: Verify README renders
+        run: |
+          grep -q "RAM-to-VRAM" README.md
+          grep -q "btop-snapshot" README.md
+          echo "README OK"
