@@ -98,12 +98,12 @@ Example output:
 │  • KV cache          │  • Compute buffers               │
 │  • Output tokens     │  • Attention computation         │
 ├──────────────────────┴──────────────────────────────────┤
-│                                                          │
+│                                                         │
 │  ┌──────────┐    ┌──────────────┐    ┌────────────────┐ │
 │  │ Ollama   │    │    vLLM      │    │   llama.cpp    │ │
 │  │ :11434   │    │    :8000     │    │    :8080       │ │
 │  └──────────┘    └──────────────┘    └────────────────┘ │
-│                                                          │
+│                                                         │
 │  ┌──────────────────────────────────────────────────┐   │
 │  │         Memory Optimizer (auto-detect)           │   │
 │  │  • Detect backend via process/port scanning      │   │
