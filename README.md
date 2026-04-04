@@ -202,3 +202,9 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+<div align="center">
+
+**Ram-2-VRam-System** by [c0smic](https://github.com/r13xr13)
+
+</div>
